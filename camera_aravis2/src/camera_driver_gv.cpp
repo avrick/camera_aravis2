@@ -52,6 +52,12 @@ CameraDriverGv::CameraDriverGv(const rclcpp::NodeOptions& options) :
     //--- setup parameters
     setupParameters();
 
+    auto auto_socket_buffer_desc = rcl_interfaces::msg::ParameterDescriptor{};
+    auto_socket_buffer_desc.description =
+      "Automatically size the GVSP stream socket's receive buffer based on the payload size. "
+      "If disabled, the socket buffer is left at its OS default.";
+    declare_parameter<bool>("stream_auto_socket_buffer", true, auto_socket_buffer_desc);
+
     is_verbose_enable_ = get_parameter("verbose").as_bool();
 
     //--- get parameter overrides, i.e. all parameters, including those that are not declared
@@ -273,7 +279,7 @@ void CameraDriverGv::tuneArvStream(ArvStream* p_stream) const
         return;
     }
 
-    gboolean b_auto_buffer               = FALSE;
+    gboolean b_auto_buffer               = get_parameter("stream_auto_socket_buffer").as_bool();
     gboolean b_packet_resend             = TRUE;
     unsigned int timeout_packet          = 40;  // milliseconds
     unsigned int timeout_frame_retention = 200;
