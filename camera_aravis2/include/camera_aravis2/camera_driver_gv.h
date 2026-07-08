@@ -101,6 +101,15 @@ class CameraDriverGv : public CameraDriver
     void tuneArvStream(ArvStream* p_stream) const override;
 
     /**
+     * @brief Create the Aravis GV stream, constructing it directly so that construction-time
+     * properties (socket buffer size) are applied by Aravis at creation time.
+     *
+     * @param[in] p_error GError to be set on failure.
+     * @return Pointer to newly created Aravis stream, or nullptr on failure.
+     */
+    ArvStream* createArvStream(GError** p_error) override;
+
+    /**
      * @brief Callback method to inject short processing routines after the
      * publication of each frame, e.g. check state of PTP.
      *

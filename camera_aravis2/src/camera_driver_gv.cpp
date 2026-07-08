@@ -52,19 +52,6 @@ CameraDriverGv::CameraDriverGv(const rclcpp::NodeOptions& options) :
     //--- setup parameters
     setupParameters();
 
-    auto auto_socket_buffer_desc = rcl_interfaces::msg::ParameterDescriptor{};
-    auto_socket_buffer_desc.description =
-      "Automatically size the GVSP stream socket's receive buffer based on the payload size. "
-      "If disabled, a fixed size given by 'stream_socket_buffer_size' is used instead.";
-    declare_parameter<bool>("stream_auto_socket_buffer", false, auto_socket_buffer_desc);
-
-    auto socket_buffer_size_desc = rcl_interfaces::msg::ParameterDescriptor{};
-    socket_buffer_size_desc.description =
-      "Fixed size, in bytes, of the GVSP stream socket's receive buffer. Only used when "
-      "'stream_auto_socket_buffer' is disabled. Requires net.core.rmem_max to be set to at "
-      "least this value for the requested size to actually be applied by the kernel.";
-    declare_parameter<int>("stream_socket_buffer_size", 33554432, socket_buffer_size_desc);
-
     is_verbose_enable_ = get_parameter("verbose").as_bool();
 
     //--- get parameter overrides, i.e. all parameters, including those that are not declared
@@ -286,22 +273,10 @@ void CameraDriverGv::tuneArvStream(ArvStream* p_stream) const
         return;
     }
 
-    gboolean b_auto_buffer               = get_parameter("stream_auto_socket_buffer").as_bool();
     gboolean b_packet_resend             = TRUE;
     unsigned int timeout_packet          = 40;  // milliseconds
     unsigned int timeout_frame_retention = 200;
 
-    if (b_auto_buffer)
-        g_object_set(p_stream, "socket-buffer",
-                     ARV_GV_STREAM_SOCKET_BUFFER_AUTO,
-                     "socket-buffer-size", 0,
-                     NULL);
-    else
-        g_object_set(p_stream, "socket-buffer",
-                     ARV_GV_STREAM_SOCKET_BUFFER_FIXED,
-                     "socket-buffer-size",
-                     get_parameter("stream_socket_buffer_size").as_int(),
-                     NULL);
     if (!b_packet_resend)
         g_object_set(p_stream, "packet-resend",
                      b_packet_resend
@@ -312,6 +287,33 @@ void CameraDriverGv::tuneArvStream(ArvStream* p_stream) const
                  timeout_packet * 1000,
                  "frame-retention", timeout_frame_retention * 1000,
                  NULL);
+}
+
+//==================================================================================================
+ArvStream* CameraDriverGv::createArvStream(GError** p_error)
+{
+    // Socket buffer size for GVSP streams, in bytes. Construct-time-only property on
+    // ArvGvStream, so it must be set here at construction rather than via a later
+    // g_object_set() call on an already-created stream (see tuneArvStream()).
+    static const guint SOCKET_BUFFER_SIZE = 33554432;  // 32 MiB
+
+    ArvDevice* p_device = arv_camera_get_device(p_camera_);
+
+    ArvStream* p_stream = reinterpret_cast<ArvStream*>(
+      g_object_new(ARV_TYPE_GV_STREAM,
+                   "device", p_device,
+                   "socket-buffer", ARV_GV_STREAM_SOCKET_BUFFER_FIXED,
+                   "socket-buffer-size", SOCKET_BUFFER_SIZE,
+                   NULL));
+
+    if (!ARV_IS_GV_STREAM(p_stream))
+    {
+        g_set_error(p_error, ARV_DEVICE_ERROR, ARV_DEVICE_ERROR_PROTOCOL_ERROR,
+                    "Failed to construct GV stream.");
+        return nullptr;
+    }
+
+    return p_stream;
 }
 
 //==================================================================================================

@@ -1635,6 +1635,12 @@ void CameraDriver::publishCameraDiagnosticsLoop(double rate) const
 }
 
 //==================================================================================================
+ArvStream* CameraDriver::createArvStream(GError** p_error)
+{
+    return arv_camera_create_stream(p_camera_, nullptr, nullptr, p_error);
+}
+
+//==================================================================================================
 void CameraDriver::spawnCameraStreams()
 {
     GuardedGError err;
@@ -1657,7 +1663,7 @@ void CameraDriver::spawnCameraStreams()
             if (arv_camera_is_gv_device(p_camera_))
                 arv_camera_gv_select_stream_channel(p_camera_, i, err.ref());
 
-            stream.p_arv_stream = arv_camera_create_stream(p_camera_, nullptr, nullptr, err.ref());
+            stream.p_arv_stream = createArvStream(err.ref());
             CHECK_GERROR_MSG(err, logger_, "In creating camera stream.");
 
             if (stream.p_arv_stream)

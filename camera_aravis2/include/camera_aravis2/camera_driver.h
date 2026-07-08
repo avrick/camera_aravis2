@@ -391,6 +391,18 @@ class CameraDriver : public CameraAravisNodeBase
      */
     virtual void tuneArvStream(ArvStream* p_stream) const = 0;
 
+    /**
+     * @brief Create an Aravis stream for the currently opened camera.
+     *
+     * Default implementation simply wraps arv_camera_create_stream(). Overridden by
+     * CameraDriverGv so that construction-time-only stream properties (e.g. socket buffer
+     * size) can be applied directly at construction.
+     *
+     * @param[in] p_error GError to be set on failure.
+     * @return Pointer to newly created Aravis stream, or nullptr on failure.
+     */
+    virtual ArvStream* createArvStream(GError** p_error);
+
 #ifdef WITH_MATCHED_EVENTS
     /**
      * @brief Handle change in message subscription.
