@@ -28,6 +28,9 @@
 
 #include "camera_aravis2/camera_driver.h"
 
+// Std
+#include <algorithm>
+
 // ROS
 #include <rcl_interfaces/msg/floating_point_range.hpp>
 #include <rcl_interfaces/msg/integer_range.hpp>
@@ -1244,6 +1247,12 @@ void CameraDriver::setupDynamicParameters()
                             getFeatureValue<float>(feature_name, defVal);
                             int defVal_int = static_cast<int>(defVal * 1000.f);
                             defVal         = static_cast<float>(defVal_int) / 1000;
+
+                            //--- clamp to range, since rounding above can push defVal a hair
+                            //--- outside of [from_value, to_value] and declare_parameter()
+                            //--- throws (uncaught) if the default violates its own range
+                            defVal = std::clamp(defVal, static_cast<float>(fpRange.from_value),
+                                                 static_cast<float>(fpRange.to_value));
 
                             //--- declare parameter
                             declare_parameter<float>(feature_name, defVal, param_desc);
