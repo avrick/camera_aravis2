@@ -1257,13 +1257,6 @@ void CameraDriver::setupDynamicParameters()
                             //--- InvalidParameterValueException.
                             double defVal_d = std::clamp(static_cast<double>(defVal),
                                                           fpRange.from_value, fpRange.to_value);
-                            defVal          = static_cast<float>(defVal_d);
-
-                            RCLCPP_INFO(logger_,
-                                        "Declaring float parameter '%s': defVal=%.10f, "
-                                        "range=[%.10f, %.10f]",
-                                        feature_name.c_str(), defVal_d, fpRange.from_value,
-                                        fpRange.to_value);
 
                             //--- declare parameter
                             declare_parameter<double>(feature_name, defVal_d, param_desc);
