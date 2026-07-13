@@ -2240,10 +2240,25 @@ void CameraDriver::handleNewBufferSignal(ArvStream* p_stream, gpointer p_user_da
     {
         if (!buffer_success)
         {
-            RCLCPP_WARN(p_ca_instance->logger_,
-                        "(%s) Frame error: %s",
-                        stream.sensor.frame_id.c_str(),
-                        ARV_BUFFER_STATUS_FROM_INT[arv_buffer_get_status(p_arv_buffer)]);
+            if (ARV_IS_GV_STREAM(p_stream))
+            {
+                guint64 n_resent_packets  = 0;
+                guint64 n_missing_packets = 0;
+                arv_gv_stream_get_statistics(ARV_GV_STREAM(p_stream), &n_resent_packets,
+                                              &n_missing_packets);
+                RCLCPP_WARN(p_ca_instance->logger_,
+                            "(%s) Frame error: %s (resent packets: %lu, missing packets: %lu)",
+                            stream.sensor.frame_id.c_str(),
+                            ARV_BUFFER_STATUS_FROM_INT[arv_buffer_get_status(p_arv_buffer)],
+                            n_resent_packets, n_missing_packets);
+            }
+            else
+            {
+                RCLCPP_WARN(p_ca_instance->logger_,
+                            "(%s) Frame error: %s",
+                            stream.sensor.frame_id.c_str(),
+                            ARV_BUFFER_STATUS_FROM_INT[arv_buffer_get_status(p_arv_buffer)]);
+            }
         }
 
         arv_stream_push_buffer(p_stream, p_arv_buffer);
