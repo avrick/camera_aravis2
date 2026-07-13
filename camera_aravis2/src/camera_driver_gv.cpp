@@ -299,6 +299,16 @@ ArvStream* CameraDriverGv::createArvStream(GError** p_error)
 
     ArvDevice* p_device = arv_camera_get_device(p_camera_);
 
+    // Force GVSP reception through the plain UDP socket instead of Aravis' default
+    // AF_PACKET-based capture path. The packet-socket path exposes no application-level
+    // way to enlarge its receive buffer (it stays at the OS default no matter what is
+    // requested via the "socket-buffer"/"socket-buffer-size" properties below), which was
+    // shown to cause real, sustained packet loss under load. The plain UDP socket, in
+    // contrast, does honor these properties.
+    if (ARV_IS_GV_DEVICE(p_device))
+        arv_gv_device_set_stream_options(ARV_GV_DEVICE(p_device),
+                                          ARV_GV_STREAM_OPTION_PACKET_SOCKET_DISABLED);
+
     ArvStream* p_stream = reinterpret_cast<ArvStream*>(
       g_object_new(ARV_TYPE_GV_STREAM,
                    "device", p_device,
