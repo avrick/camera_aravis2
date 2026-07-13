@@ -1248,14 +1248,25 @@ void CameraDriver::setupDynamicParameters()
                             int defVal_int = static_cast<int>(defVal * 1000.f);
                             defVal         = static_cast<float>(defVal_int) / 1000;
 
-                            //--- clamp to range, since rounding above can push defVal a hair
-                            //--- outside of [from_value, to_value] and declare_parameter()
-                            //--- throws (uncaught) if the default violates its own range
-                            defVal = std::clamp(defVal, static_cast<float>(fpRange.from_value),
-                                                 static_cast<float>(fpRange.to_value));
+                            //--- clamp to range in double precision against the true (double)
+                            //--- bounds. declare_parameter() ultimately stores and validates the
+                            //--- default as a double (ROS 2 has no distinct float parameter type),
+                            //--- so clamping against float-rounded bounds is not sufficient: it can
+                            //--- round a bound in the wrong direction and still leave the declared
+                            //--- value outside of [from_value, to_value], causing an uncaught
+                            //--- InvalidParameterValueException.
+                            double defVal_d = std::clamp(static_cast<double>(defVal),
+                                                          fpRange.from_value, fpRange.to_value);
+                            defVal          = static_cast<float>(defVal_d);
+
+                            RCLCPP_INFO(logger_,
+                                        "Declaring float parameter '%s': defVal=%.10f, "
+                                        "range=[%.10f, %.10f]",
+                                        feature_name.c_str(), defVal_d, fpRange.from_value,
+                                        fpRange.to_value);
 
                             //--- declare parameter
-                            declare_parameter<float>(feature_name, defVal, param_desc);
+                            declare_parameter<double>(feature_name, defVal_d, param_desc);
                         }
                         //--- integer type
                         else if (feature_type == "int")
