@@ -328,8 +328,18 @@ void CameraDriverGv::postFrameProcessingCallback(const uint stream_id)
 //==================================================================================================
 void CameraDriverGv::checkPtpState()
 {
+    auto start = std::chrono::steady_clock::now();
+
     //--- get status
     getFeatureValue<std::string>("PtpStatus", p_gv_tl_control_->ptp_status);
+
+    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                         std::chrono::steady_clock::now() - start)
+                         .count();
+    if (elapsed_ms > 5)
+        RCLCPP_WARN(logger_, "checkPtpState: PtpStatus GVCP read took %ld ms.", elapsed_ms);
+    else
+        RCLCPP_DEBUG(logger_, "checkPtpState: PtpStatus GVCP read took %ld ms.", elapsed_ms);
 
     //--- check if clock needs reset
     if (p_gv_tl_control_->ptp_status == "Faulty" ||

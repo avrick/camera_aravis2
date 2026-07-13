@@ -1675,9 +1675,11 @@ void CameraDriver::spawnCameraStreams()
                 CHECK_GERROR_MSG(err, logger_, "In getting payload size of stream.");
 
                 // TODO: launch parameter for number of preallocated buffers
+                const guint NUM_PREALLOCATED_BUFFERS = 30;
                 stream.p_buffer_pool.reset(
                   new ImageBufferPool(logger_, stream.p_arv_stream,
-                                      static_cast<guint>(STREAM_PAYLOAD_SIZE), 10));
+                                      static_cast<guint>(STREAM_PAYLOAD_SIZE),
+                                      NUM_PREALLOCATED_BUFFERS));
 
                 stream.is_buffer_processed = true;
                 stream.buffer_processing_thread =
