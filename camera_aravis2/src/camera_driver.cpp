@@ -1098,22 +1098,32 @@ void CameraDriver::handleMessageSubscriptionChange(rclcpp::MatchedInfo& iEventIn
 {
     GuardedGError err;
 
+    //--- get the maximum number of subscribers over all streams. The count reported by the matched
+    //--- event is deliberately not used: DDS matched statuses have read-and-reset semantics, so two
+    //--- subscription changes that occur before the executor processes the event are coalesced into
+    //--- a single status with a net change of zero. Acting on that delta desynchronizes the state
+    //--- kept below from the camera permanently, leaving a stream acquiring with no subscribers.
+    RCL_UNUSED(iEventInfo);
+    int num_subscribers = 0;
+    for (uint i = 0; i < streams_.size(); ++i)
+        num_subscribers = std::max(static_cast<int>(streams_[i].camera_pub.getNumSubscribers()),
+                                   num_subscribers);
+
     //--- evaluate whether to start or stop acquisition only if device is available and if the
     //--- node is initialized.
     if (p_device_ && this->is_initialized_)
     {
-        //--- if the new subscriber count of the matched event is greater than 0 and if there were
-        //--- no subscriber so far, start acquisition
-        if (iEventInfo.current_count > 0 && current_num_subscribers_ == 0)
+        //--- if there are subscribers now and if there were no subscriber so far, start acquisition
+        if (num_subscribers > 0 && current_num_subscribers_ == 0)
         {
             RCLCPP_INFO(logger_, "|-> Acquisition start.");
 
             arv_device_execute_command(p_device_, "AcquisitionStart", err.ref());
             CHECK_GERROR_MSG(err, logger_, "In executing 'AcquisitionStart'.");
         }
-        //--- if the new subscriber count of the matched event is equal to 0 and if there were
-        //--- subscribers until now, stop acquisition
-        else if (iEventInfo.current_count == 0 && current_num_subscribers_ > 0)
+        //--- if there are no subscribers now and if there were subscribers until now, stop
+        //--- acquisition
+        else if (num_subscribers == 0 && current_num_subscribers_ > 0)
         {
             RCLCPP_INFO(logger_, "->| Acquisition stop.");
 
@@ -1125,17 +1135,15 @@ void CameraDriver::handleMessageSubscriptionChange(rclcpp::MatchedInfo& iEventIn
     {
         RCLCPP_WARN(logger_, "Subscription change detected but no action taken. "
                              "Reason: p_device_ is NULL or node is not initialized.");
-        return;
     }
 
-    //--- get the maximum number of subscribers over all streams and assign to the member variable
-    current_num_subscribers_ = 0;
-    for (uint i = 0; i < streams_.size(); ++i)
-    {
-        current_num_subscribers_ =
-          std::max(static_cast<int>(streams_[i].camera_pub.getNumSubscribers()),
-                   current_num_subscribers_);
-    }
+    //--- store the count, but only if no command failed, so that a failed start or stop is retried
+    //--- on the next subscription change instead of being silently lost. This is deliberately also
+    //--- reached when no action was taken above, so that subscribers that connect while the streams
+    //--- are still being spawned are picked up by the acquisition start at the end of the
+    //--- initialization.
+    if (!err)
+        current_num_subscribers_ = num_subscribers;
 }
 #endif
 
